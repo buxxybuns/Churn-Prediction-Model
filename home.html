@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer churn risk</title>
+<style>
+  :root {
+    --bg: #F3F5F8; --surface: #FFFFFF; --ink: #16202E; --muted: #5B6778;
+    --line: #D5DBE4; --accent: #0F5C8C; --risk: #B42318; --warn: #9A5B06; --safe: #17653A;
+    --tier: var(--muted);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+  .layout { display: grid; gap: 40px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
+  fieldset { border: 0; border-top: 1px solid var(--line); margin: 0 0 24px; padding: 14px 0 0; }
+  legend { font-weight: 650; font-size: 1.05rem; padding: 0 12px 0 0; }
+  .grid { display: grid; gap: 14px 18px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  label { display: block; font-size: 0.9rem; color: var(--muted); }
+  select, input { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; font: inherit;
+                  color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+                  border-radius: 6px; }
+  select:disabled { background: #EEF1F5; color: var(--muted); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button { font: inherit; cursor: pointer; border-radius: 6px; padding: 10px 18px; }
+  .primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); font-weight: 600; }
+  .primary:hover { background: #0B4A72; }
+  .ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .ghost:hover { border-color: var(--accent); }
+  aside { align-self: start; }
+  @media (min-width: 900px) { aside { position: sticky; top: 24px; } }
+  .result { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--tier);
+            border-radius: 6px; padding: 22px; }
+  .result h2 { margin: 0 0 4px; font-size: 1rem; color: var(--muted); font-weight: 600; }
+  .pct { font-size: 3.4rem; line-height: 1; font-weight: 700; color: var(--tier); font-variant-numeric: tabular-nums; }
+  .verdict { margin: 8px 0 14px; font-weight: 600; }
+  .bar { height: 10px; border-radius: 5px; background: #E6EAF0; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--tier); }
+  .advice { margin: 14px 0 0; color: var(--muted); }
+  .empty { color: var(--muted); margin: 0; }
+  .error { color: var(--risk); margin: 0; }
+  .note { font-size: 0.85rem; color: var(--muted); margin-top: 18px; }
+  @media (prefers-reduced-motion: no-preference) { .bar span { transition: width .4s ease; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Customer churn risk</h1>
+  <p class="lede">Describe a telecom customer and get the model's estimated chance they cancel. Built on the IBM Telco customer dataset.</p>
+
+  <div class="layout">
+    <form id="form" novalidate>
+      <fieldset>
+        <legend>Account</legend>
+        <div class="grid">
+          {% macro select(name, label) %}
+          <label>{{ label }}
+            <select name="{{ name }}">
+              {% for option in choices[name] %}<option>{{ option }}</option>{% endfor %}
+            </select>
+          </label>
+          {% endmacro %}
+          {{ select("gender", "Gender") }}
+          {{ select("SeniorCitizen", "Senior citizen") }}
+          {{ select("Partner", "Has a partner") }}
+          {{ select("Dependents", "Has dependents") }}
+          {{ select("Contract", "Contract") }}
+          <label>Tenure (months)
+            <input name="tenure" type="number" min="0" max="120" step="1" value="12" required>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Services</legend>
+        <div class="grid">
+          {{ select("PhoneService", "Phone service") }}
+          {{ select("MultipleLines", "Multiple lines") }}
+          {{ select("InternetService", "Internet service") }}
+          {{ select("OnlineSecurity", "Online security") }}
+          {{ select("OnlineBackup", "Online backup") }}
+          {{ select("DeviceProtection", "Device protection") }}
+          {{ select("TechSupport", "Tech support") }}
+          {{ select("StreamingTV", "Streaming TV") }}
+          {{ select("StreamingMovies", "Streaming movies") }}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Billing</legend>
+        <div class="grid">
+          {{ select("PaperlessBilling", "Paperless billing") }}
+          {{ select("PaymentMethod", "Payment method") }}
+          <label>Monthly charges
+            <input name="MonthlyCharges" type="number" min="0" max="500" step="0.01" value="70" required>
+          </label>
+          <label>Total charges so far
+            <input name="TotalCharges" type="number" min="0" max="20000" step="0.01" value="840" required>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button class="primary" type="submit">Predict churn risk</button>
+        <button class="ghost" type="button" data-example="stay">Fill in a loyal customer</button>
+        <button class="ghost" type="button" data-example="churn">Fill in an at-risk customer</button>
+      </div>
+    </form>
+
+    <aside>
+      <div id="result" class="result" aria-live="polite">
+        <h2>Estimated churn risk</h2>
+        <p class="empty">Fill in the customer details and select Predict churn risk.</p>
+      </div>
+      <p class="note">
+        Model: {{ metrics.chosen_model.replace("_", " ") }},
+        ROC-AUC {{ metrics.candidates[metrics.chosen_model].roc_auc }} on held-out data.
+        A customer is flagged as likely to churn at 50% or higher. Estimates guide who to look at first; they are not certainties.
+      </p>
+    </aside>
+  </div>
+</main>
+
+<script>
+const form = document.getElementById("form");
+const result = document.getElementById("result");
+const addons = ["OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies"];
+const field = (name) => form.elements[name];
+let totalEdited = false;
+
+const examples = {
+  stay: { gender: "Female", SeniorCitizen: "No", Partner: "Yes", Dependents: "Yes", Contract: "Two year",
+          tenure: 60, PhoneService: "Yes", MultipleLines: "No", InternetService: "DSL",
+          OnlineSecurity: "Yes", OnlineBackup: "Yes", DeviceProtection: "Yes", TechSupport: "Yes",
+          StreamingTV: "No", StreamingMovies: "No", PaperlessBilling: "No",
+          PaymentMethod: "Bank transfer (automatic)", MonthlyCharges: 58, TotalCharges: 3480 },
+  churn: { gender: "Male", SeniorCitizen: "No", Partner: "No", Dependents: "No", Contract: "Month-to-month",
+           tenure: 2, PhoneService: "Yes", MultipleLines: "No", InternetService: "Fiber optic",
+           OnlineSecurity: "No", OnlineBackup: "No", DeviceProtection: "No", TechSupport: "No",
+           StreamingTV: "No", StreamingMovies: "No", PaperlessBilling: "Yes",
+           PaymentMethod: "Electronic check", MonthlyCharges: 75, TotalCharges: 150 },
+};
+
+function syncDependentFields() {
+  const noNet = field("InternetService").value === "No";
+  addons.forEach((name) => {
+    const el = field(name);
+    el.disabled = noNet;
+    if (noNet) el.value = "No internet service";
+    else if (el.value === "No internet service") el.value = "No";
+  });
+  const noPhone = field("PhoneService").value === "No";
+  field("MultipleLines").disabled = noPhone;
+  if (noPhone) field("MultipleLines").value = "No phone service";
+  else if (field("MultipleLines").value === "No phone service") field("MultipleLines").value = "No";
+}
+
+function estimateTotal() {
+  if (totalEdited) return;
+  field("TotalCharges").value = (Number(field("tenure").value) * Number(field("MonthlyCharges").value)).toFixed(2);
+}
+
+function payload() {
+  const data = {};
+  Array.from(form.elements).forEach((el) => { if (el.name) data[el.name] = el.value; });
+  return data;
+}
+
+function show(html, tier) {
+  const colors = { High: "var(--risk)", Medium: "var(--warn)", Low: "var(--safe)" };
+  result.style.setProperty("--tier", colors[tier] || "var(--muted)");
+  result.innerHTML = "<h2>Estimated churn risk</h2>" + html;
+}
+
+const advice = {
+  High: "Put this customer first in line for a retention call or offer. Contract type and tenure are usually the biggest levers.",
+  Medium: "Worth watching. A nudge toward a longer contract or an add-on service may help.",
+  Low: "No action needed right now.",
+};
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  show("<p class='empty'>Calculating…</p>");
+  try {
+    const response = await fetch("/predict", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()) });
+    const data = await response.json();
+    if (!response.ok) { show("<p class='error'>" + data.errors.join("<br>") + "</p>"); return; }
+    const pct = (data.churn_probability * 100).toFixed(1);
+    show(
+      "<div class='pct'>" + pct + "%</div>" +
+      "<p class='verdict'>" + data.risk_tier + " risk. " +
+      (data.will_churn ? "Likely to churn." : "Likely to stay.") + "</p>" +
+      "<div class='bar'><span style='width:" + pct + "%'></span></div>" +
+      "<p class='advice'>" + advice[data.risk_tier] + "</p>",
+      data.risk_tier
+    );
+    if (window.matchMedia("(max-width: 899px)").matches) result.scrollIntoView({ behavior: "smooth" });
+  } catch (error) {
+    show("<p class='error'>The prediction service did not respond. Check that the server is running and try again.</p>");
+  }
+});
+
+document.querySelectorAll("[data-example]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const values = examples[button.dataset.example];
+    Object.keys(values).forEach((name) => { field(name).value = values[name]; });
+    totalEdited = true;
+    syncDependentFields();
+    show("<p class='empty'>Example loaded. Select Predict churn risk.</p>");
+  });
+});
+
+field("InternetService").addEventListener("change", syncDependentFields);
+field("PhoneService").addEventListener("change", syncDependentFields);
+field("tenure").addEventListener("input", estimateTotal);
+field("MonthlyCharges").addEventListener("input", estimateTotal);
+field("TotalCharges").addEventListener("input", () => { totalEdited = true; });
+syncDependentFields();
+</script>
+</body>
+</html>
