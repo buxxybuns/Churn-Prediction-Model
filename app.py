@@ -46,7 +46,8 @@ INTERNET_ADDONS = ["OnlineSecurity", "OnlineBackup", "DeviceProtection",
                    "TechSupport", "StreamingTV", "StreamingMovies"]
 FEATURE_ORDER = list(CHOICES) + list(NUMERIC_LIMITS)
 
-app = Flask(__name__)
+TEMPLATES = ROOT / "templates" if (ROOT / "templates").exists() else ROOT
+app = Flask(__name__, template_folder=str(TEMPLATES))
 
 
 def clean_input(payload):
