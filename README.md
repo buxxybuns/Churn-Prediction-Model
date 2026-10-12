@@ -3,6 +3,8 @@
 Predicts which telecom customers are likely to cancel, and serves the model through a small web app and a JSON API.
 
 ![Top drivers of churn prediction](models/drivers.png)
+LIVE DEMO OF THE APP MODEL ON RENDER 
+URL:https://churn-prediction-5yjf.onrender.com
 
 ## The problem
 
