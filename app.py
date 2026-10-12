@@ -6,9 +6,15 @@ import joblib
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
-ROOT = Path(__file__).parent
-PIPELINE = joblib.load(ROOT / "models" / "churn_pipeline.joblib")  # loaded once at startup
-METRICS = json.loads((ROOT / "models" / "metrics.json").read_text())
+def find(name):
+    for folder in (ROOT / "models", ROOT):
+        if (folder / name).exists():
+            return folder / name
+    raise FileNotFoundError(name)
+
+
+PIPELINE = joblib.load(find("churn_pipeline.joblib"))
+METRICS = json.loads(find("metrics.json").read_text())
 
 YES_NO = ["Yes", "No"]
 ADDON = ["Yes", "No", "No internet service"]
