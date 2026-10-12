@@ -6,14 +6,18 @@ import joblib
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
+ROOT = Path(__file__).parent
+
+
 def find(name):
+    """Look in models/ first, then the repo root (works for a flat GitHub upload)."""
     for folder in (ROOT / "models", ROOT):
         if (folder / name).exists():
             return folder / name
     raise FileNotFoundError(name)
 
 
-PIPELINE = joblib.load(find("churn_pipeline.joblib"))
+PIPELINE = joblib.load(find("churn_pipeline.joblib"))  # loaded once at startup
 METRICS = json.loads(find("metrics.json").read_text())
 
 YES_NO = ["Yes", "No"]
